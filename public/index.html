@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat App</title>
+    <link rel="stylesheet" href="public/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="log" ref="messages">
+        <ul class="messages">
+          <li v-for="(msg, index) in messages" :key="index">
+            <p
+              class="message"
+              :class="{
+              me: msg.username === username,
+              connecting: msg.type === 'CONNECTING',
+              connected: msg.type === 'CONNECTED',
+              join: msg.type === 'JOIN',
+              left: msg.type === 'LEFT',
+            }"
+            >
+              <b
+                >{{ msg.username === username ? `Me (${msg.username})` :
+                msg.username }}:</b
+              >
+              {{ msg.type === 'MESSAGE' ? msg.message : `&lt;&lt; ${msg.message}
+              &gt;&gt;` }}
+            </p>
+          </li>
+        </ul>
+      </div>
+      <form id="form" @submit.prevent="sendMessage">
+        <input type="submit" value="Send" />
+        <input
+          id="msg"
+          v-model="message"
+          type="text"
+          :size="64"
+          autofocus
+          placeholder="Type here..."
+          autocomplete="off"
+        />
+        <input type="button" value="Connect (Room ID)" @click="wsConnect" />
+        <input
+          id="roomId"
+          v-model="roomId"
+          type="text"
+          :size="64"
+          autocomplete="off"
+          @keydown.enter="wsConnect"
+        />
+        <button @click.prevent="clearMessages">Clear</button>
+      </form>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+    <!-- <script src="https://unpkg.com/vue@next"></script> -->
+    <script src="./public/script.js"></script>
+  </body>
+</html>
