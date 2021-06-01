@@ -13,8 +13,8 @@ body {
 
 #log {
   background: white;
-  margin: 0;
-  padding: 0.5em 0.5em 0.5em 0.5em;
+  margin-bottom: 4rem;
+  padding: 0 0.5em 0 0.5em;
   position: absolute;
   top: 1.5em;
   left: 0.5em;
@@ -35,19 +35,21 @@ body {
 }
 
 #msg,
-#roomId {
+#roomId,
+#username {
   width: 80%;
 }
 
 input[type="submit"],
-input[type="button"] {
+input[type="button"],
+label {
   width: 15%;
 }
 
 .messages {
   list-style: none;
   padding: 0;
-  margin-bottom: 2rem;
+  margin: 0;
 }
 
 .message {

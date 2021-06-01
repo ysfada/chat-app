@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Chat App</title>
-    <link rel="stylesheet" href="public/style.css" />
+    <link rel="stylesheet" href="/public/style.css" />
   </head>
   <body>
     <div id="app">
@@ -33,6 +33,15 @@
         </ul>
       </div>
       <form id="form" @submit.prevent="sendMessage">
+        <input type="button" value="Username" @click="setUsername" />
+        <input
+          id="username"
+          v-model="username"
+          type="text"
+          :size="16"
+          autocomplete="off"
+          @keydown.enter="setUsername"
+        />
         <input type="submit" value="Send" />
         <input
           id="msg"
@@ -57,6 +66,6 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
     <!-- <script src="https://unpkg.com/vue@next"></script> -->
-    <script src="./public/script.js"></script>
+    <script src="/public/script.js"></script>
   </body>
 </html>

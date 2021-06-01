@@ -24,7 +24,7 @@ const app = new Vue({
       return crypto.getRandomValues(new Uint32Array(1))[0].toString(16);
     },
     wsConnect() {
-      if (this.ws) this.ws.close();
+      if (this.ws) this.ws.close(1000);
 
       this.ws = new WebSocket(`ws://localhost:8080/ws/${this.roomId}?v=1.0`);
 
@@ -39,24 +39,18 @@ const app = new Vue({
 
         if (!this.ws) return;
 
-        const newUser = {
-          message: this.username,
-          type: "NEW_USER",
-        };
-        this.ws.send(JSON.stringify(newUser));
-
-        const oldMessages = {
-          type: "MESSAGES",
-        };
-        this.ws.send(JSON.stringify(oldMessages));
+        this.setUsername();
+        this.getOldMessages();
       };
 
-      this.ws.onclose = (_ev) => {
+      this.ws.onclose = (ev) => {
         this.messages.push({
           username: this.username,
           message: "connection closed",
           type: "LEFT",
         });
+
+        if (ev.code === 1000) return;
 
         if (this.reconnectInterval) return;
         this.messages.push({
@@ -79,6 +73,7 @@ const app = new Vue({
         const res = JSON.parse(ev.data);
         switch (res.type) {
           case "JOIN":
+          case "USERNAME_CHANGED":
           case "LEFT":
           case "MESSAGE":
             this.messages.push(res);
@@ -101,7 +96,13 @@ const app = new Vue({
       };
     },
     sendMessage() {
-      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+      if (
+        !this.ws ||
+        this.ws.readyState !== WebSocket.OPEN ||
+        this.message === "" ||
+        this.username === ""
+      )
+        return;
 
       this.messages.push({
         username: this.username,
@@ -114,6 +115,28 @@ const app = new Vue({
       };
       this.ws.send(JSON.stringify(msg));
       this.message = "";
+    },
+    setUsername() {
+      if (
+        !this.ws ||
+        this.ws.readyState !== WebSocket.OPEN ||
+        this.username === ""
+      )
+        return;
+
+      const newUser = {
+        message: this.username,
+        type: "NEW_USER",
+      };
+      this.ws.send(JSON.stringify(newUser));
+    },
+    getOldMessages() {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+      const oldMessages = {
+        type: "MESSAGES",
+      };
+      this.ws.send(JSON.stringify(oldMessages));
     },
     scrollToBottom() {
       this.$nextTick(() => {

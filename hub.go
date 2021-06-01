@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
@@ -176,6 +177,7 @@ func (h *Hub) newUser(message *Message) {
 	if !ok {
 		return // Calls the deferred function, i.e. closes the connection on error
 	}
+	oldUsername := client.Username
 	client.Username = message.Message
 	h.client.Add(client)
 
@@ -183,11 +185,16 @@ func (h *Hub) newUser(message *Message) {
 		if message.ClientID == clientID {
 			continue
 		}
-		if err := conn.WriteJSON(BaseResponse{
+		response := BaseResponse{
 			Username: client.Username,
 			Message:  "joined",
 			Type:     "JOIN",
-		}); err != nil {
+		}
+		if oldUsername != "<unset>" {
+			response.Message = fmt.Sprintf("changed username from %s", oldUsername)
+			response.Type = "USERNAME_CHANGED"
+		}
+		if err := conn.WriteJSON(response); err != nil {
 			log.Printf("(roomID: %s; clientID: %s) write error: %s\n", message.RoomID, clientID, err.Error())
 			conn.WriteMessage(websocket.CloseMessage, []byte{})
 			conn.Close()
