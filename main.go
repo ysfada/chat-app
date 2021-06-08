@@ -18,14 +18,19 @@ func main() {
 	app.Use("/ws", hub.Upgrade)
 
 	app.Get("/ws/:roomID", websocket.New(hub.Handler, websocket.Config{
-		Origins: []string{"http://localhost:8080", "http://127.0.0.1:8080"},
+		Origins: []string{
+			"http://localhost:8080",
+			"http://127.0.0.1:8080",
+			// "http://localhost:3000",
+			// "http://127.0.0.1:3000",
+		},
 	}))
 
-	app.Static("public/", "./public", fiber.Static{
+	app.Static("/", "./dist", fiber.Static{
 		Compress: true,
 	})
-	app.Static("*", "./public/index.html", fiber.Static{
-		Compress: true,
+	app.Get("/*", func(ctx *fiber.Ctx) error {
+		return ctx.SendFile("./dist/index.html", true)
 	})
 
 	go hub.Run()
