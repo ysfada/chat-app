@@ -10,8 +10,14 @@ A simple chat app created with [Fiber](https://github.com/gofiber/fiber) + [Vue.
 ## Deployment
 
 ```bash
+# serve client at localhost:3000
+$ npm run serve
+
 # serve app at localhost:8080
 $ go run .
+
+# build client for production
+$ npm run build
 
 # build for production and launch server
 $ go build .
