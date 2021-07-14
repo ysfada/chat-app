@@ -1,338 +1,229 @@
 <template>
-  <div id="log" ref="messagesDivRef">
-    <ul class="messages">
-      <li v-for="(msg, index) in messages" :key="index">
-        <p
-          class="message"
-          :class="{
-            me: msg.username === username,
-            connecting: msg.type === 'CONNECTING',
-            connected: msg.type === 'CONNECTED',
-            join: msg.type === 'JOIN',
-            left: msg.type === 'LEFT',
-          }"
-        >
-          <b
-            >{{
-              msg.username === username ? `Me (${msg.username})` : msg.username
-            }}:</b
-          >
-          {{
-            msg.type === "MESSAGE"
-              ? msg.message
-              : `&lt;&lt; ${msg.message}
-              &gt;&gt;`
-          }}
-        </p>
-      </li>
-    </ul>
-  </div>
-
-  <form id="form" @submit.prevent="sendMessage">
-    <input type="button" value="Username" @click="setUsername" />
-    <input
-      id="username"
-      v-model="username"
-      type="text"
-      :size="16"
-      autocomplete="off"
-      @keydown.enter="setUsername"
-    />
-    <input type="submit" value="Send" />
-    <input
-      id="msg"
-      ref="messageInputRef"
-      v-model="message"
-      type="text"
-      :size="64"
-      placeholder="Type here..."
-      autocomplete="off"
-    />
-    <input type="button" value="Connect (Room ID)" @click="wsConnect" />
-    <input
-      id="roomId"
-      v-model="roomId"
-      type="text"
-      :size="64"
-      autocomplete="off"
-      @keydown.enter="wsConnect"
-    />
-    <button @click.prevent="clearMessages">Clear</button>
-  </form>
+  <ChatHeader />
+  <RoomDrawer />
+  <ChatMain>
+    <div id="welcome">
+      <h1 id="welcome-title">Welcome to chat app</h1>
+      <p
+        id="welcome-text"
+      >You can join a chat room from left panel and once you join can see the online users from right panel</p>
+    </div>
+  </ChatMain>
+  <UserDrawer v-show="currentRoom" />
+  <Overlay />
 </template>
 
-<script lang="ts">
-import {
-  defineComponent,
-  onMounted,
-  onBeforeMount,
-  watch,
-  ref,
-  nextTick,
-} from "vue";
-
-interface IMessage {
-  username: string;
-  message: string;
-  type: string;
-}
+<script lang='ts'>
+import { computed, defineComponent, onBeforeMount, onBeforeUnmount, watch } from 'vue'
+import ChatHeader from '../components/Chat/Header.vue'
+import RoomDrawer from '../components/Chat/RoomDrawer.vue'
+import UserDrawer from '../components/Chat/UserDrawer.vue'
+import ChatMain from '../components/Chat/Main.vue'
+import Overlay from '../components/Chat/Overlay.vue'
+import useChat from '../composables/useChat'
+import useChatState from '../composables/useChatState'
+import { useRoute } from 'vue-router'
 
 export default defineComponent({
-  name: "Chat",
+  name: 'Chat',
+  components: {
+    ChatHeader,
+    RoomDrawer,
+    UserDrawer,
+    ChatMain,
+    Overlay,
+  },
   setup() {
-    const ws = ref<WebSocket | null>(null);
-    const message = ref<string>("");
-    const messages = ref<IMessage[]>([]);
-    const roomId = ref<string>("");
-    const username = ref<string>("");
-    const reconnectInterval = ref<number | undefined>(undefined);
-    const messagesDivRef = ref<HTMLDivElement>();
-    const messageInputRef = ref<HTMLInputElement>();
+    const route = useRoute()
+    const { connectChat, joinChat, leftChat, ws } = useChat()
+    const { currentRoom } = useChatState()
 
-    const randomId = () => {
-      return crypto.getRandomValues(new Uint32Array(1))[0].toString(16);
-    };
+    const roomId = computed(() => route.query.roomId)
 
-    const wsConnect = () => {
-      if (ws.value) ws.value.close(1000);
-
-      ws.value = new WebSocket(`ws://localhost:8080/ws/${roomId.value}?v=1.0`);
-
-      ws.value.onopen = (_ev) => {
-        clearInterval(reconnectInterval.value); // clear interval after connection
-
-        messages.value.push({
-          username: username.value,
-          message: "Welcome to the chat room!",
-          type: "CONNECTED",
-        });
-
-        if (!ws.value) return;
-
-        setUsername();
-        getOldMessages();
-      };
-
-      ws.value.onclose = (ev) => {
-        messages.value.push({
-          username: username.value,
-          message: "connection closed",
-          type: "LEFT",
-        });
-
-        if (ev.code === 1000) return;
-
-        if (reconnectInterval.value) return;
-        messages.value.push({
-          username: username.value,
-          message: "trying to reconnect...",
-          type: "CONNECTING",
-        });
-        wsConnect(); // immediately try to reconnect
-        reconnectInterval.value = setInterval(() => {
-          messages.value.push({
-            username: username.value,
-            message: "trying to reconnect...",
-            type: "CONNECTING",
-          });
-          wsConnect();
-        }, 10000); // try to reconnect after every 10sec
-      };
-
-      ws.value.onmessage = (ev) => {
-        const res = JSON.parse(ev.data);
-        switch (res.type) {
-          case "JOIN":
-          case "USERNAME_CHANGED":
-          case "LEFT":
-          case "MESSAGE":
-            messages.value.push(res);
-            break;
-
-          case "MESSAGES":
-            if (res.messages) messages.value.push(...res.messages);
-            break;
-
-          default:
-            break;
-        }
-      };
-
-      ws.value.onerror = (ev) => {
-        // eslint-disable-next-line no-console
-        console.error(ev);
-        if (!ws.value) return;
-        ws.value.close();
-      };
-    };
-
-    const sendMessage = () => {
-      if (
-        !ws.value ||
-        ws.value.readyState !== WebSocket.OPEN ||
-        message.value === "" ||
-        username.value === ""
-      )
-        return;
-
-      messages.value.push({
-        username: username.value,
-        message: message.value,
-        type: "MESSAGE",
-      });
-      const msg = {
-        message: message.value,
-        type: "MESSAGE",
-      };
-      ws.value.send(JSON.stringify(msg));
-      message.value = "";
-    };
-
-    const setUsername = () => {
-      if (
-        !ws.value ||
-        ws.value.readyState !== WebSocket.OPEN ||
-        username.value === ""
-      )
-        return;
-
-      const newUser = {
-        message: username.value,
-        type: "NEW_USER",
-      };
-      ws.value.send(JSON.stringify(newUser));
-    };
-
-    const getOldMessages = () => {
-      if (!ws.value || ws.value.readyState !== WebSocket.OPEN) return;
-
-      const oldMessages = {
-        type: "MESSAGES",
-      };
-      ws.value.send(JSON.stringify(oldMessages));
-    };
-
-    const scrollToBottom = () => {
-      nextTick(() => {
-        if (messagesDivRef.value == null) return;
-
-        messagesDivRef.value.scrollTop = messagesDivRef.value.scrollHeight;
-      });
-    };
-
-    const clearMessages = () => {
-      message.value = "";
-      messages.value = [];
-    };
+    watch(roomId, (value, oldValue) => {
+      if (oldValue) {
+        leftChat(oldValue)
+      }
+      if (value) {
+        joinChat(value)
+      }
+    })
 
     onBeforeMount(() => {
-      roomId.value = randomId();
-      username.value = `anonymous_${randomId()}`;
-    });
+      window.onbeforeunload = (): void => {
+        if (currentRoom.value) {
+          leftChat(currentRoom.value.id)
+        }
+      }
+    })
 
-    onMounted(scrollToBottom);
-    onMounted(() => {
-      // wsConnect()
-      messageInputRef.value?.focus();
-    });
+    onBeforeMount(async () => {
+      await connectChat().catch((err) => console.error(err))
+      if (roomId.value) {
+        joinChat(roomId.value)
+      }
+    })
 
-    watch(messages.value, () => scrollToBottom());
+    onBeforeUnmount(() => {
+      ws.value?.close(1000)
+    })
 
-    return {
-      messages,
-      message,
-      username,
-      roomId,
-      messagesDivRef,
-      messageInputRef,
-      wsConnect,
-      sendMessage,
-      setUsername,
-      clearMessages,
-    };
-  },
-});
+    return { currentRoom }
+  }
+})
 </script>
 
 <style>
-html {
-  overflow: hidden;
+:root {
+  --scrollbar--with: 8px;
+  --scrollbar-thumb: hsl(210, 2%, 48%);
+  --scrollbar-thumb-hover: hsl(210, 2%, 43%);
+  --scrollbar-track: hsl(213, 12%, 14%);
+  --font-family: Avenir, Helvetica, Arial, sans-serif;
+  --header-height: 3.5rem;
+  --room-drawer-width: 16.875rem;
+  --user-drawer-width: 16.875rem;
+  --textarea--height: 2rem;
+  --drawer-transition: 300ms cubic-bezier(0.25, 0.8, 0.5, 1);
+  --btn-transition: 200ms cubic-bezier(0.4, 0, 0.6, 1);
+  --page-padding: 0.75rem;
+  --header--z-index: 9998;
+  --room-drawer--z-index: 9997;
+  --user-drawer--z-index: 9997;
+  --overlay--z-index: 9996;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --clr-background-lighter-3: hsl(210, 14%, 23%);
+    --clr-background-lighter-2: hsl(210, 14%, 21%);
+    --clr-background-lighter-1: hsl(210, 14%, 19%);
+    --clr-background: hsl(210, 14%, 17%);
+    --clr-background-darker-1: hsl(210, 14%, 15%);
+    --clr-background-darker-2: hsl(210, 14%, 13%);
+    --clr-background-darker-3: hsl(210, 14%, 11%);
+
+    --clr-foreground-lighter-3: hsl(0, 0%, 86%);
+    --clr-foreground-lighter-2: hsl(0, 0%, 84%);
+    --clr-foreground-lighter-1: hsl(0, 0%, 82%);
+    --clr-foreground: hsl(0, 0%, 80%);
+    --clr-foreground-darker-1: hsl(0, 0%, 78%);
+    --clr-foreground-darker-2: hsl(0, 0%, 76%);
+    --clr-foreground-darker-3: hsl(0, 0%, 74%);
+
+    --gradient-dot: hsl(256, 33%, 70%);
+    --gradient-line: hsl(257, 20%, 85%);
+    --gradient-bg: hsl(210, 14%, 17%);
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --clr-background-lighter-3: hsl(0, 0%, 86%);
+    --clr-background-lighter-2: hsl(0, 0%, 84%);
+    --clr-background-lighter-1: hsl(0, 0%, 82%);
+    --clr-background: hsl(0, 0%, 80%);
+    --clr-background-darker-1: hsl(0, 0%, 78%);
+    --clr-background-darker-2: hsl(0, 0%, 76%);
+    --clr-background-darker-3: hsl(0, 0%, 74%);
+
+    --clr-foreground-lighter-3: hsl(210, 14%, 23%);
+    --clr-foreground-lighter-2: hsl(210, 14%, 21%);
+    --clr-foreground-lighter-1: hsl(210, 14%, 19%);
+    --clr-foreground: hsl(210, 14%, 17%);
+    --clr-foreground-darker-1: hsl(210, 14%, 15%);
+    --clr-foreground-darker-2: hsl(210, 14%, 13%);
+    --clr-foreground-darker-3: hsl(210, 14%, 11%);
+
+    --gradient-dot: hsl(256, 33%, 70%);
+    --gradient-line: hsl(210, 14%, 17%);
+    --gradient-bg: hsl(257, 20%, 85%);
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+::-webkit-scrollbar {
+  width: var(--scrollbar--with);
+}
+
+::-webkit-scrollbar-track {
+  background-color: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
 }
 
 body {
-  overflow: hidden;
-  padding: 0;
-  margin: 0;
+  font-family: var(--font-family);
+  color: var(--clr-foreground);
+  background-color: var(--clr-background);
+}
+
+body::before {
+  content: " ";
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  background: gray;
+  will-change: transform;
+  z-index: -1;
+
+  background: radial-gradient(var(--gradient-dot) 3px, transparent 4px),
+    radial-gradient(var(--gradient-dot) 3px, transparent 4px),
+    linear-gradient(var(--gradient-bg) 4px, transparent 0),
+    linear-gradient(
+      45deg,
+      transparent 74px,
+      transparent 75px,
+      var(--gradient-line) 75px,
+      var(--gradient-line) 76px,
+      transparent 77px,
+      transparent 109px
+    ),
+    linear-gradient(
+      -45deg,
+      transparent 75px,
+      transparent 76px,
+      var(--gradient-line) 76px,
+      var(--gradient-line) 77px,
+      transparent 78px,
+      transparent 109px
+    ),
+    var(--gradient-bg);
+  background-size: 109px 109px, 109px 109px, 100% 6px, 109px 109px, 109px 109px;
+  background-position: 54px 55px, 0px 0px, 0px 0px, 0px 0px, 0px 0px;
 }
 
-#log {
-  background: white;
-  margin-bottom: 4rem;
-  padding: 0 0.5em 0 0.5em;
-  position: absolute;
-  top: 1.5em;
-  left: 0.5em;
-  right: 0.5em;
-  bottom: 3em;
-  overflow: auto;
-}
-
-#form {
-  box-sizing: border-box;
-  padding: 0 0.5em 0 0.5em;
-  margin: 0;
-  position: absolute;
-  bottom: 1em;
-  left: 0px;
+#welcome {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
   width: 100%;
-  overflow: hidden;
+  height: 100%;
+  /* opacity: 0.75;
+  background-color: var(--clr-background-darker-3); */
 }
 
-#msg,
-#roomId,
-#username {
-  width: 80%;
+#welcome-title {
+  padding: 0.25em 0.5em;
+  opacity: 0.75;
+  background-color: var(--clr-background-darker-3);
 }
 
-input[type="submit"],
-input[type="button"],
-label {
-  width: 15%;
-}
-
-.messages {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.message {
-  overflow-wrap: break-word;
-  padding: 0.5rem;
-  background-color: #b9b6b6;
-}
-
-.me {
-  color: white;
-  background-color: #05c535;
-}
-
-.connecting {
-  background-color: rgb(231, 114, 36);
-}
-
-.connected {
-  background-color: rgb(52, 118, 204);
-}
-
-.join {
-  background-color: rgb(204, 223, 35);
-}
-
-.left {
-  background-color: rgb(209, 50, 50);
+#welcome-text {
+  padding: 0.25em 0.5em;
+  opacity: 0.75;
+  background-color: var(--clr-background-darker-3);
 }
 </style>

@@ -1,0 +1,17 @@
+{
+  "recommendations": [
+    "msjsdiag.debugger-for-chrome",
+    "editorconfig.editorconfig",
+    "dbaeumer.vscode-eslint",
+    "davidanson.vscode-markdownlint",
+    "eg2.vscode-npm-script",
+    "christian-kohler.npm-intellisense",
+    "esbenp.prettier-vscode",
+    "humao.rest-client",
+    "octref.vetur",
+    "znck.vue-language-features",
+    "ms-azuretools.vscode-docker",
+    "mikestead.dotenv",
+    "johnsoncodehk.volar"
+  ]
+}

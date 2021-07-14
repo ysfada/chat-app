@@ -1,0 +1,30 @@
+{
+  "vuedx.telemetry": false,
+  "editor.minimap.enabled": false,
+  "editor.formatOnSave": true,
+  // "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.foldingStrategy": "indentation",
+  "eslint.format.enable": true,
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "js/ts.implicitProjectConfig.checkJs": true,
+  "javascript.validate.enable": true,
+  // "vetur.format.defaultFormatter.js": "prettier-eslint",
+  // "[vue]": {
+  //   "editor.defaultFormatter": "octref.vetur"
+  // },
+  "[vue]": {
+    "editor.defaultFormatter": "johnsoncodehk.volar"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[html]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
+}

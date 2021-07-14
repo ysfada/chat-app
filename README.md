@@ -5,27 +5,23 @@ A simple chat app created with [Fiber](https://github.com/gofiber/fiber) + [Vue.
 ## Features
 
 - Rooms
-- Auto reconnect
+- Auto reconnect websocket
+- Infinite scroll on old messages
+- Loading animation on images
 
 ## Deployment
 
 ```bash
-# serve client at localhost:3000
-$ npm run serve
-
-# serve app at localhost:8080
-$ go run .
-
 # build client for production
 $ npm run build
 
-# build for production and launch server
+# build and launch server for production at :8080
 $ go build .
 $ ./chat-app
 
 ```
 
-Go to [http://localhost:8080](http://localhost:8080)
+Go to [http://localhost:8080/chat](http://localhost:8080/chat)
 
 For detailed explanation on how things work, check out [Go Fiber docs](https://gofiber.io) and [Vue docs](https://vuejs.org)
 
